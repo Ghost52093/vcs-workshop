@@ -1,0 +1,1176 @@
+#+TITLE: Version Control Systems: One-Day Deep Dive Tutorial
+#+AUTHOR: VCS Workshop
+#+DATE: [2025-01-05]
+#+OPTIONS: toc:3 num:t H:4 ^:nil pri:t
+#+STARTUP: overview
+#+PROPERTY: header-args :eval never-export
+
+* Tutorial Overview
+:PROPERTIES:
+:DURATION: Full Day (8 hours)
+:AUDIENCE: Developers with basic command-line experience
+:END:
+
+** Schedule
+| Time          | Topic                                    | Duration |
+|---------------+------------------------------------------+----------|
+| 09:00 - 09:30 | Introduction & Setup                     | 30 min   |
+| 09:30 - 10:30 | CVS: Historical Foundation               | 60 min   |
+| 10:30 - 10:45 | Break                                    | 15 min   |
+| 10:45 - 12:00 | Subversion: Centralized Evolution        | 75 min   |
+| 12:00 - 13:00 | Lunch                                    | 60 min   |
+| 13:00 - 14:30 | Git: Distributed Revolution              | 90 min   |
+| 14:30 - 14:45 | Break                                    | 15 min   |
+| 14:45 - 15:45 | Mercurial: Alternative Approach          | 60 min   |
+| 15:45 - 16:30 | Comparative Analysis & Migration         | 45 min   |
+| 16:30 - 17:00 | Q&A and Wrap-up                          | 30 min   |
+
+** Learning Objectives
+- [ ] Understand the evolution of version control systems
+- [ ] Master fundamental concepts of centralized vs distributed VCS
+- [ ] Gain hands-on experience with CVS, SVN, Git, and Mercurial
+- [ ] Learn migration strategies between different VCS
+- [ ] Choose the right VCS for your project
+
+* Part 1: Introduction & Setup [09:00 - 09:30]
+** Version Control Fundamentals
+*** What is Version Control?
+Version control systems (VCS) track changes to files over time, enabling:
+- *Collaboration*: Multiple developers working on same codebase
+- *History*: Complete record of all changes
+- *Branching*: Parallel development streams
+- *Backup*: Distributed copies of code
+- *Accountability*: Who changed what and when
+
+*** Evolution Timeline
+#+BEGIN_SRC ditaa
+  1972        1982         1990         2000         2005         2025
+    |           |            |            |            |            |
+  SCCS -------> RCS -------> CVS -------> SVN ----+-> Git -------> Modern
+                                                   |
+                                                   +-> Mercurial -> Active
+                                                   |
+                                                   +-> Bazaar ----> Deprecated
+#+END_SRC
+
+** Environment Setup Checklist
+*** Prerequisites Installation
+#+BEGIN_SRC bash
+# Ubuntu/Debian
+sudo apt-get update
+sudo apt-get install -y cvs subversion git mercurial
+
+# macOS (with Homebrew)
+brew install cvs subversion git mercurial
+
+# Verify installations
+cvs --version
+svn --version
+git --version
+hg --version
+#+END_SRC
+
+*** Create Working Directory
+#+BEGIN_SRC bash
+mkdir -p ~/vcs-workshop/{cvs,svn,git,hg}
+cd ~/vcs-workshop
+#+END_SRC
+
+* Part 2: CVS - Concurrent Versions System [09:30 - 10:30]
+** Theoretical Foundation
+*** Architecture
+:PROPERTIES:
+:CUSTOM_ID: cvs-architecture
+:END:
+
+**** Centralized Model
+- Single source of truth (repository server)
+- Clients must connect to server for all operations
+- No local history or branching
+
+**** Key Concepts
+| Concept      | Description                                          |
+|--------------+------------------------------------------------------|
+| Repository   | Central storage on server                           |
+| Working Copy | Local checkout of files                             |
+| Revision     | Version number per file (1.1, 1.2, 2.1)             |
+| Tag          | Symbolic name for collection of file revisions      |
+| Branch       | Parallel development line                           |
+| Module       | Named collection of files/directories               |
+
+*** Limitations Leading to SVN
+1. *No atomic commits* - Partial commits possible
+2. *Poor binary handling* - Stores complete copies
+3. *No directory versioning* - Only tracks files
+4. *No rename support* - Implemented as delete+add
+5. *Complex branching* - Expensive and error-prone
+
+** Hands-On Exercise: CVS Basics
+*** Initialize Repository
+#+BEGIN_SRC bash
+# Create a CVS repository
+export CVSROOT=~/vcs-workshop/cvs/repo
+cvs init
+
+# Verify structure
+ls -la $CVSROOT/
+# CVSROOT/ directory contains administrative files
+#+END_SRC
+
+*** Create First Project
+#+BEGIN_SRC bash
+# Create project structure
+mkdir -p ~/vcs-workshop/cvs/myproject
+cd ~/vcs-workshop/cvs/myproject
+
+# Create initial files
+cat > README.txt << 'EOF'
+CVS Tutorial Project
+====================
+This demonstrates CVS basic operations.
+EOF
+
+cat > hello.c << 'EOF'
+#include <stdio.h>
+
+int main() {
+    printf("Hello from CVS!\n");
+    return 0;
+}
+EOF
+
+# Import to CVS
+cvs import -m "Initial import" myproject vendor start
+#+END_SRC
+
+*** Working with CVS
+#+BEGIN_SRC bash
+# Checkout working copy
+cd ~/vcs-workshop/cvs
+rm -rf myproject  # Remove original
+cvs checkout myproject
+cd myproject
+
+# Make changes
+echo "Version 1.1" >> README.txt
+
+# Check status
+cvs status README.txt
+
+# Commit changes
+cvs commit -m "Updated README"
+
+# View history
+cvs log README.txt
+
+# Create a tag
+cvs tag RELEASE_1_0
+
+# Create a branch
+cvs tag -b FEATURE_BRANCH
+cvs update -r FEATURE_BRANCH
+#+END_SRC
+
+*** Exercise: Conflict Resolution
+#+BEGIN_SRC bash
+# Terminal 1: User A
+cd ~/vcs-workshop/cvs
+cvs checkout -d myproject-userA myproject
+cd myproject-userA
+echo "User A change" >> README.txt
+cvs commit -m "User A's modification"
+
+# Terminal 2: User B (simulate)
+cd ~/vcs-workshop/cvs
+cvs checkout -d myproject-userB myproject
+cd myproject-userB
+echo "User B change" >> README.txt
+cvs commit -m "User B's modification"
+# This will fail!
+
+# Resolve conflict
+cvs update  # Merges changes
+# Edit README.txt to resolve conflicts
+cvs commit -m "Resolved conflict"
+#+END_SRC
+
+* Part 3: Subversion - CVS Done Right [10:45 - 12:00]
+** Theoretical Foundation
+*** Improvements over CVS
+**** Atomic Commits
+#+BEGIN_EXAMPLE
+CVS:  File A (r1.2), File B (failed) -> Inconsistent state
+SVN:  File A + File B -> r123 (all or nothing)
+#+END_EXAMPLE
+
+**** Global Revision Numbers
+#+BEGIN_EXAMPLE
+CVS:  file1.c (1.5), file2.c (1.3), dir/file3.c (2.1)
+SVN:  Repository at revision 1234
+#+END_EXAMPLE
+
+*** SVN Architecture
+#+BEGIN_SRC plantuml
+@startuml
+!define RECTANGLE class
+
+RECTANGLE "SVN Client" as client
+RECTANGLE "Working Copy\n(.svn metadata)" as wc
+RECTANGLE "SVN Server\n(Apache/svnserve)" as server
+RECTANGLE "Repository\n(FSFS/BDB)" as repo
+
+client --> wc : checkout/update
+wc --> client : status/diff
+client <--> server : commit/update
+server <--> repo : read/write
+@enduml
+#+END_SRC
+
+** Hands-On Exercise: SVN Operations
+*** Repository Creation
+#+BEGIN_SRC bash
+# Create repository
+svnadmin create ~/vcs-workshop/svn/repo
+
+# Setup project structure (SVN convention)
+svn mkdir -m "Initial structure" \
+  file:///$HOME/vcs-workshop/svn/repo/trunk \
+  file:///$HOME/vcs-workshop/svn/repo/branches \
+  file:///$HOME/vcs-workshop/svn/repo/tags
+#+END_SRC
+
+*** Working with SVN
+#+BEGIN_SRC bash
+# Checkout working copy
+cd ~/vcs-workshop/svn
+svn checkout file:///$HOME/vcs-workshop/svn/repo/trunk myproject
+cd myproject
+
+# Add files
+cat > calculator.py << 'EOF'
+#!/usr/bin/env python3
+"""Simple calculator demonstrating SVN."""
+
+def add(a, b):
+    return a + b
+
+def subtract(a, b):
+    return a - b
+
+def multiply(a, b):
+    return a * b
+
+def divide(a, b):
+    if b == 0:
+        raise ValueError("Cannot divide by zero")
+    return a / b
+
+if __name__ == "__main__":
+    print(f"2 + 3 = {add(2, 3)}")
+    print(f"5 - 2 = {subtract(5, 2)}")
+    print(f"4 * 3 = {multiply(4, 3)}")
+    print(f"10 / 2 = {divide(10, 2)}")
+EOF
+
+# Add and commit
+svn add calculator.py
+svn commit -m "Added calculator module"
+
+# Check info
+svn info
+svn log --verbose
+#+END_SRC
+
+*** Branching and Merging
+#+BEGIN_SRC bash
+# Create feature branch
+svn copy file:///$HOME/vcs-workshop/svn/repo/trunk \
+         file:///$HOME/vcs-workshop/svn/repo/branches/feature-sqrt \
+         -m "Creating feature branch for sqrt function"
+
+# Switch to branch
+svn switch file:///$HOME/vcs-workshop/svn/repo/branches/feature-sqrt
+
+# Add new feature
+cat >> calculator.py << 'EOF'
+
+def sqrt(n):
+    """Calculate square root using Newton's method."""
+    if n < 0:
+        raise ValueError("Cannot calculate square root of negative number")
+    x = n
+    while True:
+        root = 0.5 * (x + n/x)
+        if abs(root - x) < 0.0001:
+            break
+        x = root
+    return root
+EOF
+
+svn commit -m "Added sqrt function"
+
+# Merge back to trunk
+svn switch file:///$HOME/vcs-workshop/svn/repo/trunk
+svn merge file:///$HOME/vcs-workshop/svn/repo/branches/feature-sqrt
+svn commit -m "Merged sqrt feature"
+
+# Create tag
+svn copy file:///$HOME/vcs-workshop/svn/repo/trunk \
+         file:///$HOME/vcs-workshop/svn/repo/tags/v1.0 \
+         -m "Tagging version 1.0"
+#+END_SRC
+
+*** Properties and Metadata
+#+BEGIN_SRC bash
+# Set properties
+svn propset svn:keywords "Id Author Date" calculator.py
+svn propset svn:executable ON calculator.py
+
+# Set ignore patterns
+svn propset svn:ignore "*.pyc
+__pycache__
+.coverage" .
+
+# View properties
+svn proplist -v calculator.py
+
+# Commit property changes
+svn commit -m "Set file properties"
+#+END_SRC
+
+* Part 4: Git - Distributed Revolution [13:00 - 14:30]
+** Theoretical Foundation
+*** Distributed Model Paradigm Shift
+**** Key Differences from Centralized VCS
+| Aspect           | Centralized (CVS/SVN)         | Distributed (Git)               |
+|------------------+-------------------------------+---------------------------------|
+| Repository       | Single, on server             | Full copy on every clone        |
+| Commits          | Require server connection     | Local operation                 |
+| Branching        | Heavy, server-side            | Lightweight, local pointers     |
+| History          | Linear, server authoritative  | DAG, multiple valid histories   |
+| Offline work     | Very limited                  | Full functionality              |
+| Backup           | Critical server backups       | Every clone is a backup         |
+| Speed            | Network-bound                 | Local operations instant        |
+
+*** Git Object Model
+#+BEGIN_SRC ditaa
+    +----------+
+    |  Commit  |-----> Tree -----> Blob (file1)
+    +----------+         |
+         |               +-------> Blob (file2)
+         v               |
+    Parent Commit        +-------> Tree (subdir) ----> Blob (file3)
+#+END_SRC
+
+*** Three Trees of Git
+1. *Working Directory* - Actual files on disk
+2. *Staging Area (Index)* - Proposed next commit
+3. *Repository (HEAD)* - Committed history
+
+** Hands-On Exercise: Git Mastery
+*** Repository Initialization and Basics
+#+BEGIN_SRC bash
+# Initialize repository
+cd ~/vcs-workshop/git
+git init myproject
+cd myproject
+
+# Configure Git (local to this repo)
+git config user.name "Workshop User"
+git config user.email "workshop@example.com"
+
+# Create comprehensive .gitignore
+cat > .gitignore << 'EOF'
+# Compiled files
+*.o
+*.so
+*.exe
+*.dll
+
+# Package files
+*.jar
+*.war
+*.ear
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+EOF
+
+git add .gitignore
+git commit -m "feat: add comprehensive .gitignore"
+#+END_SRC
+
+*** Advanced Git Workflow
+#+BEGIN_SRC bash
+# Create feature branch workflow
+cat > app.js << 'EOF'
+// Main application file
+class TodoApp {
+    constructor() {
+        this.todos = [];
+    }
+    
+    addTodo(text) {
+        const todo = {
+            id: Date.now(),
+            text: text,
+            completed: false
+        };
+        this.todos.push(todo);
+        return todo;
+    }
+    
+    getTodos() {
+        return this.todos;
+    }
+}
+
+module.exports = TodoApp;
+EOF
+
+git add app.js
+git commit -m "feat: initial TodoApp implementation"
+
+# Create and switch to feature branch
+git checkout -b feature/complete-todo
+
+# Add new functionality
+cat >> app.js << 'EOF'
+
+    completeTodo(id) {
+        const todo = this.todos.find(t => t.id === id);
+        if (todo) {
+            todo.completed = true;
+            return todo;
+        }
+        return null;
+    }
+    
+    deleteTodo(id) {
+        const index = this.todos.findIndex(t => t.id === id);
+        if (index !== -1) {
+            return this.todos.splice(index, 1)[0];
+        }
+        return null;
+    }
+EOF
+
+# Stage selectively (interactive)
+git add -p app.js  # Choose hunks to stage
+
+git commit -m "feat: add complete and delete methods"
+
+# Create another branch for testing
+git checkout -b feature/testing main
+
+cat > app.test.js << 'EOF'
+const TodoApp = require('./app');
+
+describe('TodoApp', () => {
+    let app;
+    
+    beforeEach(() => {
+        app = new TodoApp();
+    });
+    
+    test('should add todo', () => {
+        const todo = app.addTodo('Test todo');
+        expect(todo.text).toBe('Test todo');
+        expect(todo.completed).toBe(false);
+    });
+    
+    test('should get all todos', () => {
+        app.addTodo('First');
+        app.addTodo('Second');
+        expect(app.getTodos()).toHaveLength(2);
+    });
+});
+EOF
+
+git add app.test.js
+git commit -m "test: add unit tests for TodoApp"
+
+# Merge feature branch
+git checkout main
+git merge --no-ff feature/complete-todo -m "Merge feature: complete-todo"
+
+# Rebase testing branch
+git checkout feature/testing
+git rebase main
+
+# Interactive rebase to clean history
+git rebase -i HEAD~2  # Squash, reword, etc.
+#+END_SRC
+
+*** Git Internals Exploration
+#+BEGIN_SRC bash
+# Examine Git objects
+git cat-file -p HEAD                    # Show commit object
+git cat-file -p HEAD^{tree}             # Show tree object
+git ls-tree HEAD                        # List tree contents
+
+# Explore reflog
+git reflog                              # Local history of HEAD
+git reflog show feature/testing         # Branch-specific reflog
+
+# Stashing workflow
+echo "Work in progress" >> app.js
+git stash save "WIP: new feature"
+git stash list
+git stash show -p stash@{0}
+git stash apply stash@{0}
+git stash drop stash@{0}
+
+# Cherry-picking
+git log --oneline feature/testing
+git checkout main
+git cherry-pick <commit-hash>
+
+# Bisect for debugging
+git bisect start
+git bisect bad HEAD
+git bisect good HEAD~10
+# Git will checkout commits for testing
+git bisect good  # or bad
+git bisect reset
+#+END_SRC
+
+*** Remote Repository Operations
+#+BEGIN_SRC bash
+# Simulate remote (bare repository)
+cd ~/vcs-workshop/git
+git init --bare remote.git
+
+# Add remote to project
+cd myproject
+git remote add origin ~/vcs-workshop/git/remote.git
+git push -u origin main
+
+# Clone simulation
+cd ~/vcs-workshop/git
+git clone remote.git myproject-clone
+cd myproject-clone
+
+# Fetch vs Pull
+git fetch origin                 # Download changes
+git merge origin/main            # Merge them
+# OR
+git pull origin main             # Fetch + merge
+
+# Multiple remotes
+git remote add backup ~/vcs-workshop/git/backup.git
+git remote -v
+
+# Push to multiple remotes
+git push origin main
+git push backup main
+#+END_SRC
+
+* Part 5: Mercurial - The Friendly DVCS [14:45 - 15:45]
+** Theoretical Foundation
+*** Philosophy Differences from Git
+| Aspect            | Git                          | Mercurial                    |
+|-------------------+------------------------------+------------------------------|
+| Design Philosophy | Power and flexibility        | Simplicity and safety        |
+| History           | Mutable (rebase, amend)      | Immutable by default         |
+| Branches          | Lightweight refs             | Named branches + bookmarks   |
+| UI Consistency    | Many ways to do things       | One obvious way              |
+| Learning Curve    | Steep                        | Gradual                      |
+| Extensions        | External tools               | Built-in extension system    |
+| Windows Support   | Improved over time           | First-class from start       |
+
+*** Mercurial Concepts
+**** Changesets
+- Atomic unit of change (like Git commits)
+- Identified by SHA-1 hash and local integer ID
+- Immutable once shared
+
+**** Phases
+#+BEGIN_EXAMPLE
+Secret (local only) -> Draft (not shared) -> Public (shared)
+#+END_EXAMPLE
+
+** Hands-On Exercise: Mercurial Workflow
+*** Repository Setup
+#+BEGIN_SRC bash
+# Initialize repository
+cd ~/vcs-workshop/hg
+hg init myproject
+cd myproject
+
+# Configure Mercurial
+cat > .hg/hgrc << 'EOF'
+[ui]
+username = Workshop User <workshop@example.com>
+editor = vim
+verbose = True
+
+[extensions]
+color =
+progress =
+pager =
+rebase =
+shelve =
+histedit =
+EOF
+
+# Create .hgignore
+cat > .hgignore << 'EOF'
+syntax: glob
+*.pyc
+*.pyo
+*.egg-info/
+__pycache__/
+.coverage
+.pytest_cache/
+*.log
+.DS_Store
+Thumbs.db
+node_modules/
+*.swp
+*.swo
+.idea/
+.vscode/
+EOF
+
+hg add .hgignore
+hg commit -m "Initial commit with .hgignore"
+#+END_SRC
+
+*** Working with Mercurial
+#+BEGIN_SRC bash
+# Create application
+cat > server.py << 'EOF'
+#!/usr/bin/env python3
+"""Simple HTTP server for Mercurial demo."""
+
+from http.server import HTTPServer, SimpleHTTPRequestHandler
+import sys
+
+class CustomHandler(SimpleHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
+        self.wfile.write(b"<h1>Mercurial Workshop Server</h1>")
+        
+def run(port=8000):
+    server = HTTPServer(('localhost', port), CustomHandler)
+    print(f"Server running on port {port}")
+    server.serve_forever()
+
+if __name__ == "__main__":
+    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
+    run(port)
+EOF
+
+hg add server.py
+hg commit -m "Add basic HTTP server"
+
+# Create named branch
+hg branch feature-logging
+cat >> server.py << 'EOF'
+
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+EOF
+
+hg commit -m "Add logging setup"
+
+# Switch back to default
+hg update default
+
+# Create bookmark (lightweight branch)
+hg bookmark feature-auth
+
+# Add authentication
+cat > auth.py << 'EOF'
+"""Authentication module."""
+
+import hashlib
+import secrets
+
+class Authenticator:
+    def __init__(self):
+        self.users = {}
+    
+    def add_user(self, username, password):
+        salt = secrets.token_hex(16)
+        hashed = hashlib.sha256((password + salt).encode()).hexdigest()
+        self.users[username] = {'salt': salt, 'hash': hashed}
+    
+    def verify(self, username, password):
+        if username not in self.users:
+            return False
+        user = self.users[username]
+        hashed = hashlib.sha256((password + user['salt']).encode()).hexdigest()
+        return hashed == user['hash']
+EOF
+
+hg add auth.py
+hg commit -m "Add authentication module"
+
+# View history
+hg log --graph --template "{rev}:{node|short} {branch} {bookmarks} {desc|firstline}\n"
+
+# Merge named branch
+hg update default
+hg merge feature-logging
+hg commit -m "Merge logging feature"
+#+END_SRC
+
+*** Mercurial Extensions
+#+BEGIN_SRC bash
+# Enable MQ (Mercurial Queues) extension
+cat >> .hg/hgrc << 'EOF'
+
+[extensions]
+mq =
+EOF
+
+# Create patch queue
+hg qinit
+
+# Create a patch
+echo "# TODO: Add database support" >> server.py
+hg qnew -m "WIP: Database preparation" database-prep.patch
+hg qseries
+hg qapplied
+
+# Modify and refresh patch
+echo "import sqlite3" >> server.py
+hg qrefresh
+
+# Pop and push patches
+hg qpop
+hg qpush
+
+# Convert patch to regular changeset
+hg qfinish database-prep.patch
+
+# Use shelve extension (similar to git stash)
+echo "Temporary work" >> server.py
+hg shelve -n "temp-work"
+hg shelve --list
+hg unshelve
+#+END_SRC
+
+*** Remote Operations
+#+BEGIN_SRC bash
+# Create central repository
+cd ~/vcs-workshop/hg
+hg init central-repo
+
+# Push to central
+cd myproject
+hg push ~/vcs-workshop/hg/central-repo
+
+# Clone repository
+cd ~/vcs-workshop/hg
+hg clone central-repo myproject-clone
+
+# Pull and update
+cd myproject-clone
+echo "Additional feature" >> feature.txt
+hg add feature.txt
+hg commit -m "Add new feature"
+hg push
+
+# In original repository
+cd ~/vcs-workshop/hg/myproject
+hg incoming ~/vcs-workshop/hg/central-repo
+hg pull ~/vcs-workshop/hg/central-repo
+hg update
+#+END_SRC
+
+* Part 6: Comparative Analysis & Migration [15:45 - 16:30]
+** Feature Comparison Matrix
+*** Core Features
+| Feature               | CVS    | Subversion | Git        | Mercurial  |
+|-----------------------+--------+------------+------------+------------|
+| *Architecture*        |        |            |            |            |
+| Model                 | Central| Central    | Distributed| Distributed|
+| Offline commits       | ❌     | ❌         | ✅         | ✅         |
+| Local branches        | ❌     | ❌         | ✅         | ✅         |
+|-----------------------+--------+------------+------------+------------|
+| *Performance*         |        |            |            |            |
+| Large repos           | Poor   | Moderate   | Good*      | Good       |
+| Binary files          | Poor   | Good       | Moderate   | Good       |
+| Network operations    | Slow   | Moderate   | Fast       | Fast       |
+|-----------------------+--------+------------+------------+------------|
+| *Usability*           |        |            |            |            |
+| Learning curve        | Medium | Easy       | Steep      | Moderate   |
+| CLI consistency       | Poor   | Good       | Complex    | Excellent  |
+| GUI tools             | Few    | Many       | Many       | Several    |
+|-----------------------+--------+------------+------------+------------|
+| *Advanced Features*   |        |            |            |            |
+| Atomic commits        | ❌     | ✅         | ✅         | ✅         |
+| Rename tracking       | ❌     | ✅         | Auto-detect| ✅         |
+| Cherry-pick           | ❌     | Limited    | ✅         | ✅ (graft)  |
+| Bisect                | ❌     | ❌         | ✅         | ✅         |
+| Rebase                | ❌     | ❌         | ✅         | Extension  |
+| Signed commits        | ❌     | ❌         | ✅ (GPG)   | ✅ (GPG)   |
+|-----------------------+--------+------------+------------+------------|
+| *Ecosystem*           |        |            |            |            |
+| Hosting platforms     | Few    | Some       | Many       | Some       |
+| CI/CD integration     | Poor   | Good       | Excellent  | Good       |
+| IDE support           | Limited| Good       | Excellent  | Good       |
+| Active development    | ❌     | ✅         | ✅✅✅      | ✅         |
+
+*** Performance Benchmarks
+#+BEGIN_SRC org
+| Operation        | CVS      | SVN     | Git     | Mercurial |
+|------------------+----------+---------+---------+-----------|
+| Clone 1GB repo   | N/A      | 5-10min | 1-2min  | 1-3min    |
+| Local commit     | 2-5s     | 1-3s    | <0.1s   | <0.2s     |
+| Branch creation  | Minutes  | Seconds | Instant | Instant   |
+| Log 10k commits  | 30-60s   | 10-20s  | 1-2s    | 2-3s      |
+| Diff large file  | 5-10s    | 2-5s    | <1s     | <1s       |
+#+END_SRC
+
+** Migration Strategies
+*** CVS to SVN Migration
+#+BEGIN_SRC bash
+# Using cvs2svn tool
+cvs2svn --svnrepos /path/to/new/svn/repo /path/to/cvs/repo
+
+# Manual migration with history
+cvs checkout module
+svn import module file:///path/to/svn/repo/trunk -m "Import from CVS"
+#+END_SRC
+
+*** SVN to Git Migration
+#+BEGIN_SRC bash
+# Standard layout (trunk/branches/tags)
+git svn clone --stdlayout --authors-file=authors.txt \
+  http://svn.example.com/repo git-repo
+
+# Custom layout
+git svn clone \
+  --trunk=trunk \
+  --branches=branches \
+  --tags=tags \
+  http://svn.example.com/repo git-repo
+
+# Convert SVN tags to Git tags
+git for-each-ref --format='%(refname:short)' refs/remotes/tags |
+while read tag; do
+    git tag ${tag#tags/} $tag
+done
+
+# Clean up SVN remotes
+git branch -r | grep -v tags | while read branch; do
+    git branch --track ${branch#origin/} $branch
+done
+#+END_SRC
+
+*** Git to Mercurial Migration
+#+BEGIN_SRC bash
+# Using hg-git extension
+hg clone git+ssh://git@github.com/user/repo.git hg-repo
+
+# Using fast-export
+git fast-export --all | hg fast-import -
+#+END_SRC
+
+*** Mercurial to Git Migration
+#+BEGIN_SRC bash
+# Using fast-export
+cd hg-repo
+hg-fast-export.sh -r . --force
+cd ../git-repo
+git init
+cat ../hg-repo/fast-export.stream | git fast-import
+#+END_SRC
+
+** Decision Framework
+*** When to Use Each VCS
+**** CVS
+- ❌ Never for new projects
+- ⚠️  Only for maintaining legacy systems
+
+**** Subversion
+- ✅ Centralized control required
+- ✅ Fine-grained access control needed  
+- ✅ Large binary files with locking
+- ✅ Simple, linear history preferred
+- ❌ Distributed development teams
+
+**** Git
+- ✅ Open source projects
+- ✅ Distributed teams
+- ✅ Complex branching workflows
+- ✅ Need for history rewriting
+- ✅ Maximum ecosystem support
+- ❌ Large binary files (without LFS)
+- ❌ Centralized access control
+
+**** Mercurial
+- ✅ Safety and simplicity priority
+- ✅ Windows-heavy environments
+- ✅ Large binary files
+- ✅ Immutable history requirement
+- ❌ Need cutting-edge features first
+- ❌ Maximum ecosystem support
+
+*** Migration Checklist
+- [ ] Inventory all repositories
+- [ ] Document current workflows
+- [ ] Map concepts between systems
+- [ ] Create author mapping files
+- [ ] Test migration with small repo
+- [ ] Train team on new system
+- [ ] Migrate in phases if possible
+- [ ] Keep old system read-only
+- [ ] Verify all history preserved
+- [ ] Update CI/CD pipelines
+- [ ] Update documentation
+- [ ] Monitor adoption metrics
+
+* Part 7: Modern VCS Landscape [16:30 - 17:00]
+** Current Market Share (2024)
+#+BEGIN_SRC org
+| VCS        | Market Share | Primary Users                |
+|------------+--------------+------------------------------|
+| Git        | ~95%         | Everyone                     |
+| Subversion | ~3%          | Enterprise, Game Dev         |
+| Mercurial  | ~1%          | Facebook, Some Python        |
+| Perforce   | ~0.5%        | Large Game Studios           |
+| Others     | ~0.5%        | Specialized/Legacy           |
+#+END_SRC
+
+** Emerging Trends
+*** Git Alternatives
+**** Fossil
+- Integrated wiki and bug tracking
+- Self-contained executable
+- Built-in web interface
+
+**** Pijul
+- Patch-based rather than snapshot-based
+- Better merge algorithms
+- Mathematically proven correctness
+
+**** Jujutsu (jj)
+- Git-compatible backend
+- Better UX than Git
+- Automatic rebasing
+- No staging area needed
+
+*** Git Enhancements
+**** Git LFS
+#+BEGIN_SRC bash
+# Track large files
+git lfs track "*.psd"
+git lfs track "*.zip"
+git add .gitattributes
+#+END_SRC
+
+**** Git Worktrees
+#+BEGIN_SRC bash
+# Multiple working directories
+git worktree add ../feature-branch feature
+git worktree list
+git worktree remove ../feature-branch
+#+END_SRC
+
+**** Scalar (Microsoft)
+- Optimizations for large repos
+- Virtual filesystem
+- Background maintenance
+
+** Best Practices Summary
+*** Universal VCS Principles
+1. **Commit Often**: Small, atomic commits
+2. **Write Good Messages**: Clear, descriptive commit messages
+3. **Branch Strategically**: Use consistent branching model
+4. **Review Changes**: Always review before committing
+5. **Don't Commit Secrets**: Use .gitignore/.hgignore
+6. **Backup Regularly**: Multiple remotes for DVCS
+7. **Document Workflows**: Team conventions in README
+8. **Automate Checks**: Pre-commit hooks, CI/CD
+9. **Tag Releases**: Semantic versioning
+10. **Learn the Tool**: Invest in understanding your VCS
+
+*** Commit Message Format
+#+BEGIN_EXAMPLE
+<type>(<scope>): <subject>
+
+<body>
+
+<footer>
+
+Types: feat, fix, docs, style, refactor, test, chore
+Example: feat(auth): add OAuth2 integration
+#+END_EXAMPLE
+
+* Appendix A: Quick Reference Commands
+** Command Equivalents
+| Operation          | CVS                  | SVN                    | Git                      | Mercurial              |
+|--------------------+----------------------+------------------------+--------------------------+------------------------|
+| Initialize repo    | cvs init             | svnadmin create        | git init                 | hg init                |
+| Clone              | cvs checkout         | svn checkout           | git clone                | hg clone               |
+| Add files          | cvs add              | svn add                | git add                  | hg add                 |
+| Commit             | cvs commit           | svn commit             | git commit               | hg commit              |
+| Status             | cvs status           | svn status             | git status               | hg status              |
+| Diff               | cvs diff             | svn diff               | git diff                 | hg diff                |
+| Log                | cvs log              | svn log                | git log                  | hg log                 |
+| Branch             | cvs tag -b           | svn copy               | git branch               | hg branch              |
+| Switch branch      | cvs update -r        | svn switch             | git checkout             | hg update              |
+| Merge              | cvs update -j        | svn merge              | git merge                | hg merge               |
+| Tag                | cvs tag              | svn copy               | git tag                  | hg tag                 |
+| Revert file        | cvs update -C        | svn revert             | git checkout --          | hg revert              |
+| Show branches      | cvs status -v        | svn list ^/branches    | git branch               | hg branches            |
+| Remote info        | N/A                  | svn info               | git remote -v            | hg paths               |
+| Pull changes       | cvs update           | svn update             | git pull                 | hg pull -u             |
+| Push changes       | Automatic            | Automatic              | git push                 | hg push                |
+| Stash/Shelve       | N/A                  | N/A                    | git stash                | hg shelve              |
+| Cherry-pick        | N/A                  | svn merge -c           | git cherry-pick          | hg graft               |
+| Blame              | cvs annotate         | svn blame              | git blame                | hg annotate            |
+| Bisect             | N/A                  | N/A                    | git bisect               | hg bisect              |
+
+* Appendix B: Troubleshooting Guide
+** Common Issues and Solutions
+*** CVS Problems
+#+BEGIN_SRC org
+| Issue                         | Solution                                   |
+|-------------------------------+--------------------------------------------|
+| "cvs commit: sticky tag"      | Remove sticky tag: cvs update -A          |
+| Partial commit failure        | Manually check each file, recommit         |
+| Lost connection during commit | Check CVS/Entries, clean up, retry        |
+| Binary file corruption        | Use -kb flag: cvs add -kb file.bin        |
+#+END_SRC
+
+*** SVN Problems
+#+BEGIN_SRC org
+| Issue                      | Solution                                        |
+|----------------------------+-------------------------------------------------|
+| "Working copy locked"      | svn cleanup                                     |
+| Tree conflict              | svn resolve --accept=working PATH              |
+| Can't merge branch         | Ensure clean working copy, use --reintegrate   |
+| Slow performance           | Use svn cleanup, check network, upgrade server |
+#+END_SRC
+
+*** Git Problems
+#+BEGIN_SRC org
+| Issue                           | Solution                                    |
+|---------------------------------+---------------------------------------------|
+| "Detached HEAD"                 | git checkout main                          |
+| Merge conflict                  | Edit files, git add, git commit            |
+| Lost commits                    | Check git reflog, git cherry-pick          |
+| Large repo slow                 | Use shallow clone: git clone --depth=1     |
+| Accidentally committed secrets  | git filter-branch or BFG Repo-Cleaner      |
+#+END_SRC
+
+*** Mercurial Problems
+#+BEGIN_SRC org
+| Issue                     | Solution                                         |
+|---------------------------+--------------------------------------------------|
+| "Multiple heads"          | hg merge or hg update to specific head          |
+| Can't push (new heads)    | Pull first, merge, then push                    |
+| Lost bookmarks            | Check .hg/bookmarks.backup                      |
+| Extension not working     | Verify in .hg/hgrc, check hg version            |
+#+END_SRC
+
+* Appendix C: Resources and Further Learning
+** Books
+*** Essential Reading
+- *Pro Git* by Scott Chacon (Git) - [[https://git-scm.com/book][Free Online]]
+- *Version Control with Subversion* (SVN) - [[http://svnbook.red-bean.com/][Free Online]]
+- *Mercurial: The Definitive Guide* by Bryan O'Sullivan - [[http://hgbook.red-bean.com/][Free Online]]
+- *Pragmatic Version Control* by Mike Mason
+
+** Online Resources
+*** Documentation
+- Git: https://git-scm.com/doc
+- SVN: https://subversion.apache.org/docs/
+- Mercurial: https://www.mercurial-scm.org/guide
+- CVS: https://www.gnu.org/software/trans-coord/manual/cvs/
+
+*** Interactive Learning
+- Learn Git Branching: https://learngitbranching.js.org/
+- Git Immersion: http://gitimmersion.com/
+- Atlassian Git Tutorial: https://www.atlassian.com/git/tutorials
+
+*** Tools and Utilities
+- Git GUI Clients: GitKraken, SourceTree, GitHub Desktop
+- SVN: TortoiseSVN (Windows), RapidSVN
+- Mercurial: TortoiseHg, SourceTree
+- Migration: cvs2svn, git-svn, hg-git, fast-export
+
+** Certification and Training
+- GitHub Certifications
+- GitLab Certifications  
+- Atlassian Git Training
+- Linux Foundation Git Course
+
+* Workshop Evaluation
+** Skills Assessment Checklist
+*** Basic Level
+- [ ] Can initialize repositories in all four VCS
+- [ ] Understand centralized vs distributed models
+- [ ] Can perform basic operations (add, commit, update)
+- [ ] Understand branching concepts
+
+*** Intermediate Level
+- [ ] Can resolve merge conflicts
+- [ ] Understand and use branching strategies
+- [ ] Can work with remote repositories
+- [ ] Knows when to use which VCS
+
+*** Advanced Level
+- [ ] Can migrate between different VCS
+- [ ] Understands internal storage models
+- [ ] Can write hooks and extensions
+- [ ] Can optimize VCS performance
+
+** Feedback Form
+#+BEGIN_SRC org
+Please rate each section (1-5):
+| Section        | Rating | Comments |
+|----------------+--------+----------|
+| CVS Overview   |        |          |
+| SVN Deep Dive  |        |          |
+| Git Mastery    |        |          |
+| Mercurial Tour |        |          |
+| Comparisons    |        |          |
+| Hands-on Labs  |        |          |
+#+END_SRC
+
+** Next Steps
+1. Practice with real projects
+2. Contribute to open source
+3. Implement VCS in your organization
+4. Explore advanced features
+5. Share knowledge with team
+
+---
+#+BEGIN_CENTER
+*Thank you for participating in the VCS Deep Dive Tutorial!*
+
+/Questions? Contact: workshop@vcs-tutorial.org/
+#+END_CENTER

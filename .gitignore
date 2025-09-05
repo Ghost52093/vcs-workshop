@@ -1,0 +1,60 @@
+# OS Files
+.DS_Store
+Thumbs.db
+*~
+
+# Editor files
+*.swp
+*.swo
+*.swn
+.vscode/
+.idea/
+*.sublime-*
+
+# Emacs
+\#*\#
+.\#*
+*~
+*.elc
+auto-save-list
+.org-id-locations
+
+# Workshop exercise directories (created during tutorial)
+exercises/cvs/repo/
+exercises/svn/repo/
+exercises/git/remote.git/
+exercises/git/backup.git/
+exercises/hg/central-repo/
+
+# Version control metadata
+.svn/
+CVS/
+.hg/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.bak
+*.backup
+*.old
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.pytest_cache/
+.coverage
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+build/
+dist/
+*.egg-info/
